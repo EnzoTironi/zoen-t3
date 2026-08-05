@@ -44,6 +44,27 @@ const EMPTY_CAPABILITIES: ModelCapabilities = createModelCapabilities({
   optionDescriptors: [],
 });
 
+/** Grok ACP handles `/compact` as prompt text; surface it in the composer slash menu. */
+export const GROK_STATIC_SLASH_COMMANDS: ReadonlyArray<ServerProviderSlashCommand> = [
+  {
+    name: "compact",
+    description: "Compress conversation history to reclaim context window",
+    input: { hint: "optional context about what to preserve" },
+  },
+];
+
+/** Ensure static commands (e.g. compact) remain present after live catalog merges. */
+export function ensureGrokStaticSlashCommands(
+  commands: ReadonlyArray<ServerProviderSlashCommand> | undefined,
+): ReadonlyArray<ServerProviderSlashCommand> {
+  const existing = commands ?? [];
+  const names = new Set(existing.map((command) => command.name.trim().toLowerCase()));
+  const missing = GROK_STATIC_SLASH_COMMANDS.filter(
+    (command) => !names.has(command.name.trim().toLowerCase()),
+  );
+  return missing.length === 0 ? existing : [...existing, ...missing];
+}
+
 function reasoningEffortLabels(value: string): string {
   const normalized = value.trim().toLowerCase();
   const labels: Record<string, string> = {
@@ -154,6 +175,7 @@ export function buildInitialGrokProviderSnapshot(
         enabled: false,
         checkedAt,
         models,
+        slashCommands: GROK_STATIC_SLASH_COMMANDS,
         probe: {
           installed: false,
           version: null,
@@ -169,6 +191,7 @@ export function buildInitialGrokProviderSnapshot(
       enabled: true,
       checkedAt,
       models,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: true,
         version: null,
@@ -343,7 +366,7 @@ const discoverGrokModelsViaAcp = (
           : undefined;
     return {
       models,
-      slashCommands: catalog.slashCommands,
+      slashCommands: ensureGrokStaticSlashCommands(catalog.slashCommands),
       skills: catalog.skills,
       ...(authEmail ? { authEmail } : {}),
       ...(authLabel ? { authLabel } : {}),
@@ -385,6 +408,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
       enabled: false,
       checkedAt,
       models: fallbackModels,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: false,
         version: null,
@@ -410,6 +434,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
       enabled: grokSettings.enabled,
       checkedAt,
       models: fallbackModels,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: !isCommandMissingCause(error),
         version: null,
@@ -428,6 +453,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
       enabled: grokSettings.enabled,
       checkedAt,
       models: fallbackModels,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: true,
         version: null,
@@ -451,6 +477,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
       enabled: grokSettings.enabled,
       checkedAt,
       models: fallbackModels,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: true,
         version,
@@ -478,6 +505,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
       enabled: grokSettings.enabled,
       checkedAt,
       models: fallbackModels,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: true,
         version,
@@ -498,6 +526,7 @@ export const checkGrokProviderStatus = Effect.fn("checkGrokProviderStatus")(func
       enabled: grokSettings.enabled,
       checkedAt,
       models: fallbackModels,
+      slashCommands: GROK_STATIC_SLASH_COMMANDS,
       probe: {
         installed: true,
         version,

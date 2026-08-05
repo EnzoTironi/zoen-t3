@@ -20,6 +20,7 @@ import {
   buildInitialGrokProviderSnapshot,
   checkGrokProviderStatus,
   enrichGrokSnapshot,
+  ensureGrokStaticSlashCommands,
   mapAcpCommandsToCatalog,
 } from "../Layers/GrokProvider.ts";
 import { ProviderEventLoggers } from "../Layers/ProviderEventLoggers.ts";
@@ -127,12 +128,16 @@ export const GrokDriver: ProviderDriver<GrokSettings, GrokDriverEnv> = {
           Effect.map((catalog) => {
             // Until a live catalog arrives, keep discovery/probe catalogs on the snapshot.
             if (!catalog.received) {
-              return snapshot;
+              return {
+                ...snapshot,
+                slashCommands: ensureGrokStaticSlashCommands(snapshot.slashCommands),
+              };
             }
-            // Once received, apply even when empty so clients clear stale entries.
+            // Once received, apply even when empty so clients clear stale entries,
+            // but always re-attach static commands (e.g. compact) if missing.
             return {
               ...snapshot,
-              slashCommands: catalog.slashCommands,
+              slashCommands: ensureGrokStaticSlashCommands(catalog.slashCommands),
               skills: catalog.skills,
             };
           }),
@@ -147,7 +152,7 @@ export const GrokDriver: ProviderDriver<GrokSettings, GrokDriverEnv> = {
             const catalog = mapAcpCommandsToCatalog(commands);
             yield* Ref.set(commandCatalogRef, {
               received: true,
-              slashCommands: catalog.slashCommands,
+              slashCommands: ensureGrokStaticSlashCommands(catalog.slashCommands),
               skills: catalog.skills,
             });
             yield* PubSub.publish(commandCatalogChanges, undefined);
