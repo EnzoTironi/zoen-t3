@@ -37,3 +37,5 @@ Opened on `pingdotgg/t3code` (heads from `EnzoTironi/t3code`):
 | Web sticky options | #5421 | #5426 |
 
 Fork-only (not upstreamed): `zoen/fork-meta`, `zoen/desktop-brand`.
+
+PR bodies and issues rewritten to match CONTRIBUTING templates (What/Why/UI/Checklist; feature-form issues). Agent review validation and community PR learnings: [UPSTREAM_GROK_PR_LEARNINGS.md](./UPSTREAM_GROK_PR_LEARNINGS.md).
