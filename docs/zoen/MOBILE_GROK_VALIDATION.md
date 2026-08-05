@@ -41,3 +41,15 @@ Optional later: fork mobile only for Zoen branding or store listing, not for Gro
 1. Run zoen-t3 server (desktop or CLI) on the LAN/tailnet.
 2. Pair stock T3 mobile to that environment.
 3. Select Grok, send a turn, confirm stream + tools + slash.
+
+## Device attempt (2026-08-05)
+
+| Check | Result |
+|-------|--------|
+| iPhone 17 Pro simulator boot | OK |
+| `com.t3tools.t3code.dev` installed | **Missing** (no dev client on this machine) |
+| `com.t3tools.t3code` (store) installed | **Missing** |
+| Android `adb` | Not installed |
+| Server contracts for plan/tasks/meter | Shared over wire; no mobile code delta |
+
+**Conclusion stands:** no mobile app changes. Full device E2E needs a stock/dev T3 Code client install + pair to zoen-t3 server.
