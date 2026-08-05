@@ -29,6 +29,12 @@ export const BRAND_ASSET_PATHS = {
   developmentWebFavicon16Png: "assets/dev/blueprint-web-favicon-16x16.png",
   developmentWebFavicon32Png: "assets/dev/blueprint-web-favicon-32x32.png",
   developmentWebAppleTouchIconPng: "assets/dev/blueprint-web-apple-touch-180.png",
+
+  /** Zoen product fork branding (desktop artifact via ZOEN_DESKTOP_BRAND=1).
+   * Assets live under assets/zoen/ (copied from zoen/sim brandbook). */
+  zoenMacIconPng: "assets/zoen/macos-1024.png",
+  zoenLinuxIconPng: "assets/zoen/linux-1024.png",
+  zoenWindowsIconIco: "assets/zoen/windows.ico",
 } as const;
 
 export type WebAssetBrand = "development" | "nightly" | "production";

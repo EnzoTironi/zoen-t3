@@ -95,6 +95,27 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "T3 Code (Nightly)");
   });
 
+  it("switches desktop packaging product name and icons for Zoen brand builds", () => {
+    const previous = process.env.ZOEN_DESKTOP_BRAND;
+    process.env.ZOEN_DESKTOP_BRAND = "1";
+    try {
+      assert.equal(resolveDesktopProductName("0.0.17"), "Zoen Code");
+      assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17"), {
+        macIconPng: BRAND_ASSET_PATHS.zoenMacIconPng,
+        linuxIconPng: BRAND_ASSET_PATHS.zoenLinuxIconPng,
+        windowsIconIco: BRAND_ASSET_PATHS.zoenWindowsIconIco,
+      });
+    } finally {
+      if (previous === undefined) {
+        delete process.env.ZOEN_DESKTOP_BRAND;
+      } else {
+        process.env.ZOEN_DESKTOP_BRAND = previous;
+      }
+    }
+    // Stock product name remains when the env flag is off.
+    assert.equal(resolveDesktopProductName("0.0.17"), "T3 Code (Alpha)");
+  });
+
   it("switches desktop packaging icons to the nightly artwork for nightly versions", () => {
     assert.deepStrictEqual(resolveDesktopBuildIconAssets("0.0.17"), {
       macIconPng: BRAND_ASSET_PATHS.productionMacIconPng,

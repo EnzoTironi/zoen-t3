@@ -35,7 +35,8 @@ import { Command, Flag } from "effect/unstable/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
-const DESKTOP_APP_ID = "com.t3tools.t3code";
+const isZoenDesktopBrand = () => process.env.ZOEN_DESKTOP_BRAND === "1";
+const DESKTOP_APP_ID = isZoenDesktopBrand() ? "com.enzo.zoen-code" : "com.t3tools.t3code";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -1483,6 +1484,13 @@ export function resolveDesktopWebAssetBrand(version: string): WebAssetBrand {
 }
 
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
+  if (isZoenDesktopBrand()) {
+    return {
+      macIconPng: BRAND_ASSET_PATHS.zoenMacIconPng,
+      linuxIconPng: BRAND_ASSET_PATHS.zoenLinuxIconPng,
+      windowsIconIco: BRAND_ASSET_PATHS.zoenWindowsIconIco,
+    };
+  }
   if (resolveDesktopUpdateChannel(version) === "nightly") {
     return {
       macIconPng: BRAND_ASSET_PATHS.nightlyMacIconPng,
@@ -1516,6 +1524,9 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
 }
 
 export function resolveDesktopProductName(version: string): string {
+  if (isZoenDesktopBrand()) {
+    return (desktopPackageJson as { zoenProductName?: string }).zoenProductName ?? "Zoen Code";
+  }
   return resolveDesktopUpdateChannel(version) === "nightly"
     ? "T3 Code (Nightly)"
     : (desktopPackageJson.productName ?? "T3 Code");
@@ -1535,10 +1546,12 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       }
     | undefined,
 ) {
+  const productName = resolveDesktopProductName(version);
+  const artifactPrefix = isZoenDesktopBrand() ? "Zoen-Code" : "T3-Code";
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
-    productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    productName,
+    artifactName: `${artifactPrefix}-\${version}-\${arch}.\${ext}`,
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [...DESKTOP_FILE_EXCLUSIONS],
     directories: {
