@@ -93,7 +93,8 @@ export function applyGrokPlanModeToPromptText(input: {
 }): string | undefined {
   const trimmed = input.text?.trim();
   if (!trimmed) {
-    return trimmed;
+    // Plan mode still needs the slash command so Grok enters plan mode.
+    return input.interactionMode === "plan" ? "/plan" : trimmed;
   }
   if (input.interactionMode === "plan") {
     if (/^\/plan(?:\s|$)/i.test(trimmed)) {
@@ -104,9 +105,22 @@ export function applyGrokPlanModeToPromptText(input: {
   return trimmed;
 }
 
+function normalizeGrokToolToken(value: string): string {
+  return value.toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function isGrokSpawnSubagentToken(normalized: string): boolean {
+  return (
+    normalized === "spawn_subagent" ||
+    normalized === "spawn_agent" ||
+    normalized.startsWith("spawn_subagent")
+  );
+}
+
 /**
  * Detect Grok in-process subagent tools (spawn_subagent and relatives) so the
  * adapter can emit T3 task.* events for multi-agent visibility.
+ * Matches only spawn-like tokens on name/toolName/title/kind — not detail/id.
  */
 export function isGrokSubagentToolCall(toolCall: {
   readonly toolCallId: string;
@@ -115,20 +129,17 @@ export function isGrokSubagentToolCall(toolCall: {
   readonly detail?: string;
   readonly data: Record<string, unknown>;
 }): boolean {
-  const haystack = [
-    toolCall.toolCallId,
-    toolCall.title ?? "",
-    toolCall.kind ?? "",
-    toolCall.detail ?? "",
-    typeof toolCall.data.name === "string" ? toolCall.data.name : "",
-    typeof toolCall.data.toolName === "string" ? toolCall.data.toolName : "",
-  ]
-    .join(" ")
-    .toLowerCase();
-  return (
-    haystack.includes("spawn_subagent") ||
-    haystack.includes("subagent") ||
-    haystack.includes("spawn_agent")
+  const candidates = [
+    toolCall.title,
+    toolCall.kind,
+    typeof toolCall.data.name === "string" ? toolCall.data.name : undefined,
+    typeof toolCall.data.toolName === "string" ? toolCall.data.toolName : undefined,
+  ];
+  return candidates.some(
+    (candidate) =>
+      typeof candidate === "string" &&
+      candidate.length > 0 &&
+      isGrokSpawnSubagentToken(normalizeGrokToolToken(candidate)),
   );
 }
 

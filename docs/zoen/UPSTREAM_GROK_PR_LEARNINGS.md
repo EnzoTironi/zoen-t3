@@ -162,14 +162,15 @@ Agents present: CodeRabbit (reviews **disabled**, noise only), Macroscope (appro
 
 ### Must fix on zoen (correctness)
 
-- [ ] Fresh stamp for `task.*` events; dedupe by toolCallId/taskId
-- [ ] Sticky: options-only fallback; never override thread `selectedModel`
-- [ ] Sticky: re-key options map to selected instance
-- [ ] Deduplicate prompt token-usage offer
-- [ ] `mergeCommandCatalog` empty-live propagation
-- [ ] `preferredModelMeta` no cross-model meta steal
-- [ ] Plan blank text → `/plan`
-- [ ] Tighten `isGrokSubagentToolCall`
+- [x] Fresh stamp for `task.*` events; dedupe by toolCallId/taskId
+- [x] Sticky: options-only fallback; never override thread `selectedModel`
+- [x] Sticky: re-key options map to selected instance
+- [x] Deduplicate prompt token-usage offer
+- [x] `mergeCommandCatalog` empty-live propagation
+- [x] `preferredModelMeta` no cross-model meta steal
+- [x] Plan blank text → `/plan`
+- [x] Tighten `isGrokSubagentToolCall`
+- [ ] Effort restart without `session.exited` / lock gap (or adopt #5403 set_model)
 
 ### Absorb from community
 

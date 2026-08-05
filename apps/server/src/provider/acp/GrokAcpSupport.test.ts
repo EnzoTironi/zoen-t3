@@ -226,11 +226,21 @@ describe("applyGrokPlanModeToPromptText", () => {
     );
   });
 
-  it("returns undefined/empty for blank plan prompts", () => {
+  it("returns /plan for blank plan prompts", () => {
     expect(applyGrokPlanModeToPromptText({ text: undefined, interactionMode: "plan" })).toBe(
+      "/plan",
+    );
+    expect(applyGrokPlanModeToPromptText({ text: "   ", interactionMode: "plan" })).toBe("/plan");
+  });
+
+  it("returns undefined/empty for blank non-plan prompts", () => {
+    expect(applyGrokPlanModeToPromptText({ text: undefined, interactionMode: "default" })).toBe(
       undefined,
     );
-    expect(applyGrokPlanModeToPromptText({ text: "   ", interactionMode: "plan" })).toBe("");
+    expect(applyGrokPlanModeToPromptText({ text: "   ", interactionMode: "default" })).toBe("");
+    expect(applyGrokPlanModeToPromptText({ text: undefined, interactionMode: undefined })).toBe(
+      undefined,
+    );
   });
 });
 
@@ -244,7 +254,7 @@ describe("isGrokSubagentToolCall", () => {
     ).toBe(true);
   });
 
-  it("matches titles that mention subagent", () => {
+  it("matches spawn-style titles after normalize", () => {
     expect(
       isGrokSubagentToolCall({
         toolCallId: "tc_2",
@@ -252,6 +262,18 @@ describe("isGrokSubagentToolCall", () => {
         data: {},
       }),
     ).toBe(true);
+  });
+
+  it("does not match ordinary tools whose detail mentions subagent", () => {
+    expect(
+      isGrokSubagentToolCall({
+        toolCallId: "tc_detail",
+        title: "Read file",
+        kind: "read",
+        detail: "notes about a subagent workflow",
+        data: { name: "read_file" },
+      }),
+    ).toBe(false);
   });
 
   it("does not match ordinary tools", () => {

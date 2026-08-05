@@ -140,6 +140,12 @@ interface GrokSessionContext {
   sessionTitle: string | undefined;
   /** Context window size from model meta when known. */
   contextWindowTokens: number | undefined;
+  /** toolCallIds already emitted as task.started (subagent dedupe). */
+  startedSubagentTaskIds: Set<string>;
+  /** toolCallIds already emitted as task.completed (subagent dedupe). */
+  completedSubagentTaskIds: Set<string>;
+  /** turnIds that already received a prompt token-usage event. */
+  promptUsageOfferedTurnIds: Set<TurnId>;
 }
 
 function settlePendingApprovalsAsCancelled(
@@ -285,10 +291,12 @@ function preferredModelMeta(input: {
     preferred: string | undefined,
   ): unknown => {
     if (!models || models.length === 0) return undefined;
-    const preferredMatch = preferred
-      ? models.find((model) => model.modelId === preferred)
-      : undefined;
-    return preferredMatch?._meta ?? models[0]?._meta;
+    if (preferred) {
+      // Preferred id set: only that model's meta (may be undefined). Never fall back to models[0].
+      const preferredMatch = models.find((model) => model.modelId === preferred);
+      return preferredMatch?._meta;
+    }
+    return models[0]?._meta;
   };
   const fromSession = pick(
     input.sessionModels?.availableModels,
@@ -297,11 +305,14 @@ function preferredModelMeta(input: {
   if (fromSession !== undefined) return fromSession;
   const initializeModelState = input.initializeMeta?.modelState;
   if (isRecord(initializeModelState) && Array.isArray(initializeModelState.availableModels)) {
+    const availableModels = initializeModelState.availableModels.flatMap((entry) => {
+      if (!isRecord(entry) || typeof entry.modelId !== "string") {
+        return [] as Array<{ modelId: string; _meta?: unknown }>;
+      }
+      return [{ modelId: entry.modelId, _meta: entry._meta }];
+    });
     return pick(
-      initializeModelState.availableModels as ReadonlyArray<{
-        modelId: string;
-        _meta?: unknown;
-      }>,
+      availableModels,
       input.preferredModelId ??
         (typeof initializeModelState.currentModelId === "string"
           ? initializeModelState.currentModelId
@@ -461,10 +472,14 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
       turnId: TurnId,
       meta: unknown,
     ): Effect.Effect<void> => {
+      if (ctx.promptUsageOfferedTurnIds.has(turnId)) {
+        return Effect.void;
+      }
       const promptUsage = tokenUsageFromGrokPromptMeta(meta);
       if (!promptUsage) {
         return Effect.void;
       }
+      ctx.promptUsageOfferedTurnIds.add(turnId);
       const maxTokens =
         ctx.contextWindowTokens !== undefined && ctx.contextWindowTokens > 0
           ? ctx.contextWindowTokens
@@ -1130,6 +1145,9 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
             configOptions: started.sessionSetupResult.configOptions ?? [],
             sessionTitle: undefined,
             contextWindowTokens,
+            startedSubagentTaskIds: new Set(),
+            completedSubagentTaskIds: new Set(),
+            promptUsageOfferedTurnIds: new Set(),
           };
 
           const nf = yield* Stream.runDrain(
@@ -1271,7 +1289,8 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
                     // Surface Grok spawn_subagent (and similar) as T3 task rows
                     // so multi-agent work is visible like Claude Task tools.
                     if (isGrokSubagentToolCall(event.toolCall)) {
-                      const taskId = RuntimeTaskId.make(event.toolCall.toolCallId);
+                      const toolCallId = event.toolCall.toolCallId;
+                      const taskId = RuntimeTaskId.make(toolCallId);
                       const description =
                         event.toolCall.title?.trim() ||
                         event.toolCall.detail?.trim() ||
@@ -1280,44 +1299,52 @@ export function makeGrokAdapter(grokSettings: GrokSettings, options?: GrokAdapte
                         event.toolCall.status === "pending" ||
                         event.toolCall.status === "inProgress"
                       ) {
-                        yield* offerRuntimeEvent({
-                          type: "task.started",
-                          ...stamp,
-                          provider: PROVIDER,
-                          threadId: ctx.threadId,
-                          turnId: notificationTurnId,
-                          payload: {
-                            taskId,
-                            description,
-                            taskType: "subagent",
-                          },
-                          raw: {
-                            source: "acp.jsonrpc",
-                            method: "session/update",
-                            payload: event.rawPayload,
-                          },
-                        });
+                        if (!ctx.startedSubagentTaskIds.has(toolCallId)) {
+                          ctx.startedSubagentTaskIds.add(toolCallId);
+                          const taskStamp = yield* makeEventStamp();
+                          yield* offerRuntimeEvent({
+                            type: "task.started",
+                            ...taskStamp,
+                            provider: PROVIDER,
+                            threadId: ctx.threadId,
+                            turnId: notificationTurnId,
+                            payload: {
+                              taskId,
+                              description,
+                              taskType: "subagent",
+                            },
+                            raw: {
+                              source: "acp.jsonrpc",
+                              method: "session/update",
+                              payload: event.rawPayload,
+                            },
+                          });
+                        }
                       } else if (
                         event.toolCall.status === "completed" ||
                         event.toolCall.status === "failed"
                       ) {
-                        yield* offerRuntimeEvent({
-                          type: "task.completed",
-                          ...stamp,
-                          provider: PROVIDER,
-                          threadId: ctx.threadId,
-                          turnId: notificationTurnId,
-                          payload: {
-                            taskId,
-                            status: event.toolCall.status === "failed" ? "failed" : "completed",
-                            ...(event.toolCall.detail ? { summary: event.toolCall.detail } : {}),
-                          },
-                          raw: {
-                            source: "acp.jsonrpc",
-                            method: "session/update",
-                            payload: event.rawPayload,
-                          },
-                        });
+                        if (!ctx.completedSubagentTaskIds.has(toolCallId)) {
+                          ctx.completedSubagentTaskIds.add(toolCallId);
+                          const taskStamp = yield* makeEventStamp();
+                          yield* offerRuntimeEvent({
+                            type: "task.completed",
+                            ...taskStamp,
+                            provider: PROVIDER,
+                            threadId: ctx.threadId,
+                            turnId: notificationTurnId,
+                            payload: {
+                              taskId,
+                              status: event.toolCall.status === "failed" ? "failed" : "completed",
+                              ...(event.toolCall.detail ? { summary: event.toolCall.detail } : {}),
+                            },
+                            raw: {
+                              source: "acp.jsonrpc",
+                              method: "session/update",
+                              payload: event.rawPayload,
+                            },
+                          });
+                        }
                       }
                     }
                     return;

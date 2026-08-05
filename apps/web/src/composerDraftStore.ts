@@ -975,9 +975,9 @@ export function deriveEffectiveComposerModelState(input: {
   threadModelSelection: ModelSelection | null | undefined;
   projectModelSelection: ModelSelection | null | undefined;
   /**
-   * Cross-thread sticky selection (e.g. last chosen Grok effort). Used when
-   * the per-thread draft has no options yet so composer controls and send
-   * do not silently fall back to the thread's last-turn options.
+   * Cross-thread sticky selection options (e.g. last chosen Grok effort).
+   * Only supplies options when the per-thread draft has none; does not
+   * override the thread/project model slug.
    */
   stickyModelSelectionByProvider?: Partial<Record<ProviderInstanceId, ModelSelection>> | null;
   settings: UnifiedSettings;
@@ -1004,42 +1004,46 @@ export function deriveEffectiveComposerModelState(input: {
   // Look up the instance's saved selection first; fall back to the
   // driver-kind bucket so legacy kind-keyed drafts still resolve. Every
   // `ProviderDriverKind` literal is a valid `ProviderInstanceId` slug, so the
-  // cast to the branded type is safe.
+  // cast to the branded type is safe. Sticky is options-only and never
+  // participates in the model path.
   const instanceSelection = input.selectedInstanceId
     ? input.draft?.modelSelectionByProvider?.[input.selectedInstanceId]
     : undefined;
   const legacySelection =
     input.draft?.modelSelectionByProvider?.[ProviderInstanceId.make(input.selectedProvider)];
+  const draftSelection = instanceSelection ?? legacySelection;
+  const draftSelectionInstanceId = instanceSelection
+    ? (input.selectedInstanceId ?? ProviderInstanceId.make(input.selectedProvider))
+    : ProviderInstanceId.make(input.selectedProvider);
   const stickyInstanceKey =
     input.selectedInstanceId ?? ProviderInstanceId.make(input.selectedProvider);
   const stickySelection =
     input.stickyModelSelectionByProvider?.[stickyInstanceKey] ??
     input.stickyModelSelectionByProvider?.[ProviderInstanceId.make(input.selectedProvider)];
-  const activeSelection = instanceSelection ?? legacySelection ?? stickySelection;
-  const activeSelectionInstanceId = instanceSelection
-    ? (input.selectedInstanceId ?? ProviderInstanceId.make(input.selectedProvider))
-    : legacySelection
-      ? ProviderInstanceId.make(input.selectedProvider)
-      : stickyInstanceKey;
-  const selectedModel = activeSelection?.model
+  const selectedModel = draftSelection?.model
     ? (resolveAppModelSelectionForInstance(
-        activeSelectionInstanceId,
+        draftSelectionInstanceId,
         input.settings,
         input.providers,
-        activeSelection.model,
+        draftSelection.model,
       ) ??
       resolveAppModelSelection(
         input.selectedProvider,
         input.settings,
         input.providers,
-        activeSelection.model,
+        draftSelection.model,
       ))
     : baseModel;
-  // Prefer draft options, then sticky (user's last picker choice), then
+  // Prefer draft options, then sticky (user's last picker choice) re-keyed
+  // under the selected instance so custom instances resolve options, then
   // thread/project so changing effort on an existing thread reaches sendTurn.
+  const stickyOptions =
+    stickySelection?.options && stickySelection.options.length > 0
+      ? { [stickyInstanceKey]: stickySelection.options }
+      : null;
   const modelOptions =
     modelSelectionByProviderToOptions(input.draft?.modelSelectionByProvider) ??
-    providerSelectionsFromModelSelection(stickySelection) ??
+    stickyOptions ??
     providerSelectionsFromModelSelection(input.threadModelSelection) ??
     providerSelectionsFromModelSelection(input.projectModelSelection) ??
     null;

@@ -282,29 +282,38 @@ const discoverGrokModelsViaAcp = (
     const modelsFromSession = buildGrokDiscoveredModelsFromSessionModelState(
       started.sessionSetupResult.models,
     );
-    const modelsFromInitialize = buildGrokDiscoveredModelsFromSessionModelState(
-      initializeMeta?.modelState as EffectAcpSchema.SessionModelState | undefined,
-    );
+    const rawInitializeModelState = initializeMeta?.modelState;
+    const initializeModelState =
+      rawInitializeModelState !== null &&
+      typeof rawInitializeModelState === "object" &&
+      !Array.isArray(rawInitializeModelState) &&
+      Array.isArray((rawInitializeModelState as { availableModels?: unknown }).availableModels)
+        ? (rawInitializeModelState as EffectAcpSchema.SessionModelState)
+        : undefined;
+    const modelsFromInitialize =
+      buildGrokDiscoveredModelsFromSessionModelState(initializeModelState);
     const models = modelsFromSession.length > 0 ? modelsFromSession : modelsFromInitialize;
     const initializeCommands = Array.isArray(initializeMeta?.availableCommands)
-      ? (
-          initializeMeta.availableCommands as ReadonlyArray<{
+      ? (initializeMeta.availableCommands as ReadonlyArray<unknown>).flatMap((command) => {
+          if (command === null || typeof command !== "object") {
+            return [];
+          }
+          const entry = command as {
             readonly name?: unknown;
             readonly description?: unknown;
             readonly input?: unknown;
-          }>
-        ).flatMap((command) => {
-          const name = typeof command.name === "string" ? command.name.trim() : "";
+          };
+          const name = typeof entry.name === "string" ? entry.name.trim() : "";
           if (!name) return [];
           const description =
-            typeof command.description === "string" ? command.description.trim() : undefined;
+            typeof entry.description === "string" ? entry.description.trim() : undefined;
           const inputHint =
-            command.input &&
-            typeof command.input === "object" &&
-            command.input !== null &&
-            "hint" in command.input &&
-            typeof (command.input as { hint: unknown }).hint === "string"
-              ? (command.input as { hint: string }).hint.trim()
+            entry.input &&
+            typeof entry.input === "object" &&
+            entry.input !== null &&
+            "hint" in entry.input &&
+            typeof (entry.input as { hint: unknown }).hint === "string"
+              ? (entry.input as { hint: string }).hint.trim()
               : undefined;
           return [
             {

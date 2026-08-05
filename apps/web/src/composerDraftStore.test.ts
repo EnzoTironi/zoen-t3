@@ -1209,6 +1209,107 @@ describe("composerDraftStore modelSelection", () => {
     );
   });
 
+  it("uses sticky options only and keeps thread model when draft is empty", () => {
+    const derived = deriveEffectiveComposerModelState({
+      draft: {
+        modelSelectionByProvider: {},
+        activeProvider: null,
+      },
+      providers: [
+        {
+          instanceId: GROK_INSTANCE,
+          driver: GROK_DRIVER,
+          enabled: true,
+          isAvailable: true,
+          models: [
+            {
+              slug: "grok-4.5",
+              name: "Grok 4.5",
+              isCustom: false,
+              capabilities: { optionDescriptors: [] },
+            },
+            {
+              slug: "grok-4",
+              name: "Grok 4",
+              isCustom: false,
+              capabilities: { optionDescriptors: [] },
+            },
+          ],
+        } as never,
+      ],
+      selectedProvider: GROK_DRIVER,
+      selectedInstanceId: GROK_INSTANCE,
+      threadModelSelection: modelSelection(GROK_DRIVER, "grok-4.5", {
+        reasoningEffort: "high",
+      }),
+      projectModelSelection: null,
+      stickyModelSelectionByProvider: {
+        [GROK_INSTANCE]: modelSelection(GROK_DRIVER, "grok-4", {
+          reasoningEffort: "low",
+        }),
+      },
+      settings: {
+        providers: {
+          grok: { customModels: [] },
+        },
+        providerInstances: {},
+        models: {},
+      } as never,
+    });
+    expect(derived.selectedModel).toBe("grok-4.5");
+    expect(derived.modelOptions?.[String(GROK_INSTANCE)]).toEqual(
+      toSelections({ reasoningEffort: "low" }),
+    );
+  });
+
+  it("re-keys sticky options under selected custom instance", () => {
+    const derived = deriveEffectiveComposerModelState({
+      draft: {
+        modelSelectionByProvider: {},
+        activeProvider: null,
+      },
+      providers: [
+        {
+          instanceId: CODEX_SECONDARY_INSTANCE,
+          driver: CODEX_DRIVER,
+          enabled: true,
+          isAvailable: true,
+          models: [
+            {
+              slug: "gpt-5.4",
+              name: "GPT-5.4",
+              isCustom: false,
+              capabilities: { optionDescriptors: [] },
+            },
+          ],
+        } as never,
+      ],
+      selectedProvider: CODEX_DRIVER,
+      selectedInstanceId: CODEX_SECONDARY_INSTANCE,
+      threadModelSelection: modelSelection(CODEX_DRIVER, "gpt-5.4", {
+        reasoningEffort: "high",
+      }),
+      projectModelSelection: null,
+      stickyModelSelectionByProvider: {
+        [CODEX_INSTANCE]: modelSelection(CODEX_DRIVER, "gpt-5.3-codex", {
+          reasoningEffort: "low",
+        }),
+      },
+      settings: {
+        providers: {
+          codex: { customModels: [] },
+        },
+        providerInstances: {},
+        models: {},
+      } as never,
+    });
+    expect(derived.selectedModel).toBe("gpt-5.4");
+    expect(derived.modelOptions?.[String(CODEX_SECONDARY_INSTANCE)]).toEqual(
+      toSelections({ reasoningEffort: "low" }),
+    );
+    expect(derived.modelOptions?.[String(CODEX_INSTANCE)]).toBeUndefined();
+  });
+
   it("persists grok option selections on the draft and sticky map", () => {
     const store = useComposerDraftStore.getState();
     store.setProviderModelOptions(
