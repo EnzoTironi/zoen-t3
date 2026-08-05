@@ -2,41 +2,65 @@
 
 ## Remotes & long-lived branches
 
-| Branch      | Role                                      |
-| ----------- | ----------------------------------------- |
-| `main`      | Clean mirror of `upstream/main` (FF only) |
-| `zoen/main` | Product integration (default)             |
-| `origin`    | `EnzoTironi/zoen-t3`                      |
-| `upstream`  | `pingdotgg/t3code`                        |
+| Branch | Role |
+| ------ | ---- |
+| `main` | Clean mirror of `upstream/main` (FF only) |
+| `zoen/main` | Product integration (default) — tip of the stack below |
+| `origin` | `EnzoTironi/zoen-t3` |
+| `upstream` | `pingdotgg/t3code` |
 
-## Topic branches (open from latest `main`, merge into `zoen/main`)
+## Linear stack (one concern per layer)
 
-Use one concern per branch. Names match intended upstream PR slices:
-
-| Branch                    | Concern                                              | Status                              |
-| ------------------------- | ---------------------------------------------------- | ----------------------------------- |
-| `zoen/grok-acp-parser`    | Shared `AcpRuntimeModel` sessionUpdate kinds         | Merged on `zoen/main`               |
-| `zoen/grok-usage-meter`   | Prompt meta usage → context meter                    | Merged on `zoen/main`               |
-| `zoen/grok-effort`        | Process-scoped `--reasoning-effort` restart          | Merged on `zoen/main`               |
-| `zoen/grok-catalog`       | Slash/skills catalog publish                         | Merged on `zoen/main`               |
-| `zoen/grok-plan`          | Plan mode via `/plan` text mapping + composer toggle | Merged on `zoen/main` (`270fd9465`) |
-| `zoen/grok-multiagent`    | Subagent tools → `task.*` events                     | Merged on `zoen/main` (`270fd9465`) |
-| `zoen/desktop-brand`      | Zoen logo + product name (`ZOEN_DESKTOP_BRAND=1`)    | Merged on `zoen/main` (`270fd9465`) |
-| `zoen/web-sticky-options` | Sticky option fallback for sendTurn                  | Merged on `zoen/main`               |
-| `zoen/branch-stack`       | Docs: stack policy + mobile validation               | Merged on `zoen/main` (`270fd9465`) |
-
-Historical commits already landed on `zoen/main`. Going forward:
-
-```bash
-git fetch upstream
-git checkout main && git merge --ff-only upstream/main && git push origin main
-git checkout -b zoen/grok-<topic> main
-# implement one concern → test → merge into zoen/main
-git checkout zoen/main && git merge main && git merge zoen/grok-<topic>
+```text
+main
+ └── zoen/fork-meta                 docs + FORK.md + sync-upstream.sh
+      └── zoen/grok-acp-parser      shared ACP model/events/runtime
+           └── zoen/grok-native     catalog + effort + usage + auth/models core
+                └── zoen/grok-plan  plan toggle + /plan text mapping
+                     └── zoen/grok-multiagent  subagent tools → task.* events
+                          └── zoen/web-sticky-options
+                               └── zoen/desktop-brand
+                                    = zoen/main
 ```
 
-Or use `./scripts/sync-upstream.sh` for the weekly `main` + `zoen/main` merge.
+| Branch | Concern | Distinct tip? | Upstream? |
+| ------ | ------- | ------------- | --------- |
+| `zoen/fork-meta` (`zoen/branch-stack`) | Fork layout, stack policy, parity docs, sync script | Yes | No |
+| `zoen/grok-acp-parser` | Shared AcpRuntimeModel / core events | Yes | Yes |
+| `zoen/grok-native` | Provider core: catalog, effort, usage, auth, set_model | Yes | Yes (may re-slice) |
+| `zoen/grok-plan` | Plan mode via `/plan` text + composer toggle | Yes | Yes |
+| `zoen/grok-multiagent` | Subagent tools → `task.*` | Yes | Yes |
+| `zoen/web-sticky-options` | Sticky sendTurn options + badge cleanup | Yes | Yes |
+| `zoen/desktop-brand` | Zoen brandbook + `ZOEN_DESKTOP_BRAND=1` | Yes | No |
+
+### Alias tips (still on `zoen/grok-native`)
+
+Catalog / effort / usage remain **bundled inside** the native-core commit. Aliases point there for tracking until a further re-slice:
+
+| Alias | Bundled in |
+| ----- | ---------- |
+| `zoen/grok-catalog` | `zoen/grok-native` |
+| `zoen/grok-effort` | `zoen/grok-native` |
+| `zoen/grok-usage-meter` | `zoen/grok-native` |
+
+## How to work
+
+```bash
+./scripts/sync-upstream.sh          # FF main from upstream, merge into zoen/main
+git checkout -b zoen/grok-<topic> <parent-layer>
+# one concern → merge into zoen/main → restack if needed
+```
 
 ## Upstream PR policy
 
-Only open **one topic branch per PR** onto `pingdotgg/t3code`, after an issue, rebased on latest `upstream/main`. Never a monolith of `zoen/main`.
+- One topic branch per PR onto `pingdotgg/t3code`, rebased on latest `upstream/main`.
+- Never open whole `zoen/main`.
+- Never open fork-only layers (`fork-meta`, `desktop-brand`).
+- Prefer issue → branch → PR for each upstreamable layer.
+
+## Inspect
+
+```bash
+git log --oneline --decorate main..zoen/main
+git branch -vv | rg 'zoen/'
+```
