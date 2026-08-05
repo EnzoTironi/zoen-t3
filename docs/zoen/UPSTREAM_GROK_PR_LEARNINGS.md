@@ -170,19 +170,19 @@ Agents present: CodeRabbit (reviews **disabled**, noise only), Macroscope (appro
 - [x] `preferredModelMeta` no cross-model meta steal
 - [x] Plan blank text → `/plan`
 - [x] Tighten `isGrokSubagentToolCall`
-- [ ] Effort restart without `session.exited` / lock gap (or adopt #5403 set_model)
+- [x] Effort via `session/set_model` `_meta` (no process restart / no `session.exited`)
 
 ### Absorb from community
 
-- [ ] #5409 plan.md + exit_plan_mode proposed card (with path/stamp fixes)
-- [ ] #5412 `/compact` + auto_compact_completed
-- [ ] #5405 zero-token + window resolution polish
-- [ ] Re-probe #5403 set_model effort mid-thread vs CLI restart
+- [x] #5409 plan.md + exit_plan_mode proposed card (session-path guard, turn-scoped dedupe, abandoned capture)
+- [x] #5412 `/compact` + auto_compact_completed
+- [x] #5405 window resolution polish (per-model map)
+- [x] #5403 set_model effort mid-thread
 
 ### Process / templates
 
 - [x] Document learnings (this file)
-- [ ] Rewrite open PR bodies to What/Why/UI/Checklist
-- [ ] Align issues #5417–#5421 with feature form structure
-- [ ] Shrink upstream tips before re-requesting review
-- [ ] Close or supercede XXL tips if Ahmed lands the overlapping lake
+- [x] Rewrite open PR bodies to What/Why/UI/Checklist
+- [x] Align issues #5417–#5421 with feature form structure
+- [x] Rebuild PR tips from `upstream/main` (no full-stack dump per PR)
+- [x] Close #5424 / #5425 (folded into #5423); keep #5422 size L, #5426 size M, #5423 full adapter

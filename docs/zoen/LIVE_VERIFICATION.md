@@ -28,14 +28,16 @@ See `MOBILE_GROK_VALIDATION.md`. No app code changes; device client not installe
 
 Opened on `pingdotgg/t3code` (heads from `EnzoTironi/t3code`):
 
-| Slice | Issue | PR |
-|-------|-------|-----|
-| ACP parser | #5417 | #5422 |
-| Grok native core | #5418 | #5423 |
-| Plan mode | #5419 | #5424 |
-| Multi-agent | #5420 | #5425 |
-| Web sticky options | #5421 | #5426 |
+| Slice | Issue | PR | Size | Status |
+|-------|-------|-----|------|--------|
+| ACP parser (shared) | #5417 | [#5422](https://github.com/pingdotgg/t3code/pull/5422) | ~+379 / 6 files | Open — merge first |
+| Grok native parity (adapter) | #5418–#5420 | [#5423](https://github.com/pingdotgg/t3code/pull/5423) | ~+2.3k Grok delta | Open — includes plan + multi-agent + compact + effort set_model |
+| Web sticky options | #5421 | [#5426](https://github.com/pingdotgg/t3code/pull/5426) | ~+237 / 4 files | Open — independent of server |
+| Plan-only tip | #5419 | #5424 | — | **Closed** (folded into #5423) |
+| Multi-agent-only tip | #5420 | #5425 | — | **Closed** (folded into #5423) |
 
-Fork-only (not upstreamed): `zoen/fork-meta`, `zoen/desktop-brand`.
+Heads rebuilt from `upstream/main` with tip product code (not cumulative XXL dumps). Bodies follow CONTRIBUTING What/Why/UI/Checklist.
 
-PR bodies and issues rewritten to match CONTRIBUTING templates (What/Why/UI/Checklist; feature-form issues). Agent review validation and community PR learnings: [UPSTREAM_GROK_PR_LEARNINGS.md](./UPSTREAM_GROK_PR_LEARNINGS.md).
+Fork-only: `zoen/fork-meta`, `zoen/desktop-brand`.
+
+Learnings + agent review: [UPSTREAM_GROK_PR_LEARNINGS.md](./UPSTREAM_GROK_PR_LEARNINGS.md).
