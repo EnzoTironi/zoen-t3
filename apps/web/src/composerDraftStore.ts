@@ -974,6 +974,12 @@ export function deriveEffectiveComposerModelState(input: {
   selectedInstanceId?: ProviderInstanceId | null | undefined;
   threadModelSelection: ModelSelection | null | undefined;
   projectModelSelection: ModelSelection | null | undefined;
+  /**
+   * Cross-thread sticky selection (e.g. last chosen Grok effort). Used when
+   * the per-thread draft has no options yet so composer controls and send
+   * do not silently fall back to the thread's last-turn options.
+   */
+  stickyModelSelectionByProvider?: Partial<Record<ProviderInstanceId, ModelSelection>> | null;
   settings: UnifiedSettings;
 }): EffectiveComposerModelState {
   const baseModelCandidate =
@@ -1004,10 +1010,17 @@ export function deriveEffectiveComposerModelState(input: {
     : undefined;
   const legacySelection =
     input.draft?.modelSelectionByProvider?.[ProviderInstanceId.make(input.selectedProvider)];
-  const activeSelection = instanceSelection ?? legacySelection;
+  const stickyInstanceKey =
+    input.selectedInstanceId ?? ProviderInstanceId.make(input.selectedProvider);
+  const stickySelection =
+    input.stickyModelSelectionByProvider?.[stickyInstanceKey] ??
+    input.stickyModelSelectionByProvider?.[ProviderInstanceId.make(input.selectedProvider)];
+  const activeSelection = instanceSelection ?? legacySelection ?? stickySelection;
   const activeSelectionInstanceId = instanceSelection
     ? (input.selectedInstanceId ?? ProviderInstanceId.make(input.selectedProvider))
-    : ProviderInstanceId.make(input.selectedProvider);
+    : legacySelection
+      ? ProviderInstanceId.make(input.selectedProvider)
+      : stickyInstanceKey;
   const selectedModel = activeSelection?.model
     ? (resolveAppModelSelectionForInstance(
         activeSelectionInstanceId,
@@ -1022,8 +1035,11 @@ export function deriveEffectiveComposerModelState(input: {
         activeSelection.model,
       ))
     : baseModel;
+  // Prefer draft options, then sticky (user's last picker choice), then
+  // thread/project so changing effort on an existing thread reaches sendTurn.
   const modelOptions =
     modelSelectionByProviderToOptions(input.draft?.modelSelectionByProvider) ??
+    providerSelectionsFromModelSelection(stickySelection) ??
     providerSelectionsFromModelSelection(input.threadModelSelection) ??
     providerSelectionsFromModelSelection(input.projectModelSelection) ??
     null;
@@ -2665,7 +2681,13 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             }
             const base = existing ?? createEmptyThreadDraft();
             const nextMap = { ...base.modelSelectionByProvider };
-            for (const provider of ["codex", "claudeAgent", "cursor", "opencode"] as const) {
+            for (const provider of [
+              "codex",
+              "claudeAgent",
+              "cursor",
+              "opencode",
+              "grok",
+            ] as const) {
               if (!modelOptions || !(provider in modelOptions)) continue;
               const opts = modelOptions[provider];
               const driverKind = ProviderDriverKind.make(provider);
@@ -3506,6 +3528,9 @@ export function useEffectiveComposerModelState(input: {
   settings: UnifiedSettings;
 }): EffectiveComposerModelState {
   const draft = useComposerDraftModelState(input.threadRef ?? input.draftId ?? DraftId.make(""));
+  const stickyModelSelectionByProvider = useComposerDraftStore(
+    (state) => state.stickyModelSelectionByProvider,
+  );
 
   return useMemo(
     () =>
@@ -3516,6 +3541,7 @@ export function useEffectiveComposerModelState(input: {
         selectedInstanceId: input.selectedInstanceId,
         threadModelSelection: input.threadModelSelection,
         projectModelSelection: input.projectModelSelection,
+        stickyModelSelectionByProvider,
         settings: input.settings,
       }),
     [
@@ -3526,6 +3552,7 @@ export function useEffectiveComposerModelState(input: {
       input.selectedInstanceId,
       input.selectedProvider,
       input.threadModelSelection,
+      stickyModelSelectionByProvider,
     ],
   );
 }
